@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>TradeTrap — A5RT Performance Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg: #0a0c0f;
+  --bg2: #11141a;
+  --bg3: #181c24;
+  --bg4: #1e2330;
+  --border: #252c3a;
+  --text: #e8ecf2;
+  --muted: #6b7591;
+  --accent: #3b82f6;
+  --accent2: #8b5cf6;
+  --green: #22c55e;
+  --red: #ef4444;
+  --yellow: #f59e0b;
+  --cyan: #06b6d4;
+  --gold: #f59e0b;
+  --radius: 10px;
+  --font: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: var(--font); min-height: 100vh; }
+
+/* NAV */
+nav { background: var(--bg2); border-bottom: 1px solid var(--border); padding: 0 24px; display: flex; align-items: center; gap: 4px; position: sticky; top: 0; z-index: 100; height: 52px; }
+.nav-brand { font-size: 13px; font-weight: 700; color: var(--accent); letter-spacing: .05em; margin-right: 16px; }
+.nav-tab { padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 500; color: var(--muted); cursor: pointer; transition: all .15s; border: none; background: none; }
+.nav-tab:hover { color: var(--text); background: var(--bg3); }
+.nav-tab.active { color: var(--text); background: var(--bg4); }
+
+/* PAGES */
+.page { display: none; padding: 24px; max-width: 1400px; margin: 0 auto; }
+.page.active { display: block; }
+
+/* GRID HELPERS */
+.grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 16px; }
+@media (max-width: 900px) { .grid-4 { grid-template-columns: repeat(2,1fr); } .grid-2,.grid-3 { grid-template-columns: 1fr; } }
+
+/* CARDS */
+.card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; }
+.card-title { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-bottom: 12px; }
+.card-full { grid-column: 1 / -1; }
+
+/* KPI TILES */
+.kpi { text-align: center; }
+.kpi-val { font-size: 28px; font-weight: 700; line-height: 1; }
+.kpi-label { font-size: 11px; color: var(--muted); margin-top: 4px; }
+.kpi-sub { font-size: 11px; margin-top: 2px; }
+.pos { color: var(--green); }
+.neg { color: var(--red); }
+.neu { color: var(--yellow); }
+
+/* ALERT BANNER */
+.alert { background: rgba(239,68,68,.08); border: 1px solid rgba(239,68,68,.25); border-radius: var(--radius); padding: 12px 16px; margin-bottom: 16px; font-size: 12px; color: var(--red); }
+.alert-title { font-weight: 700; margin-bottom: 4px; }
+
+/* INSIGHT BANNER */
+.insight { background: rgba(59,130,246,.06); border: 1px solid rgba(59,130,246,.2); border-radius: var(--radius); padding: 14px 18px; margin-bottom: 16px; font-size: 12px; line-height: 1.6; color: #a8c4f0; }
+.insight strong { color: var(--text); }
+
+/* TABLE */
+.tbl { width: 100%; border-collapse: collapse; font-size: 12px; }
+.tbl th { text-align: left; padding: 8px 10px; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); border-bottom: 1px solid var(--border); }
+.tbl td { padding: 9px 10px; border-bottom: 1px solid rgba(37,44,58,.6); }
+.tbl tr:last-child td { border-bottom: none; }
+.tbl tr:hover td { background: var(--bg3); }
+.tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; }
+.tag-green { background: rgba(34,197,94,.12); color: var(--green); }
+.tag-red { background: rgba(239,68,68,.12); color: var(--red); }
+.tag-yellow { background: rgba(245,158,11,.12); color: var(--yellow); }
+.tag-blue { background: rgba(59,130,246,.12); color: var(--accent); }
+.tag-purple { background: rgba(139,92,246,.12); color: var(--accent2); }
+.tag-gray { background: rgba(107,117,145,.12); color: var(--muted); }
+
+/* BARS */
+.bar-wrap { display: flex; align-items: center; gap: 8px; }
+.bar-bg { flex: 1; height: 6px; background: var(--bg3); border-radius: 3px; overflow: hidden; }
+.bar-fill { height: 100%; border-radius: 3px; }
+
+/* SECTION HEADER */
+.sec-hdr { font-size: 15px; font-weight: 600; margin-bottom: 14px; color: var(--text); display: flex; align-items: center; gap: 8px; }
+.sec-hdr span { font-size: 11px; color: var(--muted); font-weight: 400; }
+
+/* PROGRESS RING */
+.ring-wrap { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.ring-label { font-size: 12px; color: var(--muted); }
+
+/* CIRCLE TIMELINE */
+.circle-row { display: flex; gap: 10px; margin-bottom: 16px; overflow-x: auto; padding-bottom: 4px; }
+.circle-chip { flex: 0 0 auto; background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; min-width: 120px; cursor: pointer; transition: all .15s; }
+.circle-chip:hover, .circle-chip.active { border-color: var(--accent); background: var(--bg4); }
+.circle-chip .cc-name { font-size: 11px; font-weight: 700; color: var(--muted); }
+.circle-chip .cc-r { font-size: 18px; font-weight: 700; }
+.circle-chip .cc-wr { font-size: 10px; color: var(--muted); margin-top: 2px; }
+
+/* EXECUTION METER */
+.exec-meter { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.exec-item { background: var(--bg3); border-radius: 8px; padding: 12px; }
+.exec-item .ei-label { font-size: 10px; color: var(--muted); margin-bottom: 4px; }
+.exec-item .ei-val { font-size: 18px; font-weight: 700; }
+.exec-item .ei-sub { font-size: 10px; color: var(--muted); }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-brand">⬡ TradeTrap</div>
+  <button class="nav-tab active" onclick="showPage('overview')">Overview</button>
+  <button class="nav-tab" onclick="showPage('equity')">Equity Curve</button>
+  <button class="nav-tab" onclick="showPage('edge')">Edge Analysis</button>
+  <button class="nav-tab" onclick="showPage('execution')">Execution</button>
+  <button class="nav-tab" onclick="showPage('circles')">Circles</button>
+  <button class="nav-tab" onclick="showPage('breakdown')">Breakdown</button>
+</nav>
+
+<!-- ═══════════════════════════════════════════════════════════════ OVERVIEW -->
+<div id="page-overview" class="page active">
+  <div class="sec-hdr">A5RT Performance Overview <span>All Circles · 104 executed trades</span></div>
+
+  <div class="insight">
+    <strong>Key finding:</strong> Your A5RT edge is <strong>real and positive</strong>. A+/CLEAN trades produce <strong>+1.15R expectancy</strong> across 42 trades. However, execution errors (A+/EX-ERROR + NO SETUP/X) have cost you <strong>−10.34R</strong> that should not exist. Your total journal is <strong>+44.3R</strong> — but the majority of that R was generated in C5 (ETH). London session needs urgent attention: 56 trades, 17% WR, barely breakeven.
+  </div>
+
+  <div class="grid-4">
+    <div class="card kpi">
+      <div class="kpi-val pos">+44.3R</div>
+      <div class="kpi-label">Total Cumulative R</div>
+      <div class="kpi-sub pos">All circles combined</div>
+    </div>
+    <div class="card kpi">
+      <div class="kpi-val" style="color:var(--yellow)">26.5%</div>
+      <div class="kpi-label">Overall Win Rate</div>
+      <div class="kpi-sub neu">27 W / 74 L / 8 BE</div>
+    </div>
+    <div class="card kpi">
+      <div class="kpi-val pos">+1.15R</div>
+      <div class="kpi-label">A+/CLEAN Expectancy</div>
+      <div class="kpi-sub pos">Your true edge signal</div>
+    </div>
+    <div class="card kpi">
+      <div class="kpi-val neg">−10.3R</div>
+      <div class="kpi-label">Execution Error Cost</div>
+      <div class="kpi-sub neg">EX-ERROR + NO SETUP/X</div>
+    </div>
+  </div>
+
+  <div class="grid-4">
+    <div class="card kpi">
+      <div class="kpi-val pos">+5.6R</div>
+      <div class="kpi-label">Avg Win (A+/CLEAN)</div>
+      <div class="kpi-sub" style="color:var(--cyan)">vs −0.54R avg loss</div>
+    </div>
+    <div class="card kpi">
+      <div class="kpi-val neg">19.7R</div>
+      <div class="kpi-label">Peak Drawdown (LDN)</div>
+      <div class="kpi-sub neg">London session max DD</div>
+    </div>
+    <div class="card kpi">
+      <div class="kpi-val" style="color:var(--cyan)">9</div>
+      <div class="kpi-label">Missed Opportunities</div>
+      <div class="kpi-sub neu">Opportunity cost unquantified</div>
+    </div>
+    <div class="card kpi">
+      <div class="kpi-val pos">+39.9R</div>
+      <div class="kpi-label">C5 Total R</div>
+      <div class="kpi-sub pos">Best circle — ETH-driven</div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">Grade Performance — Strategy vs Execution vs Error</div>
+      <canvas id="gradeChart" height="200"></canvas>
+    </div>
+    <div class="card">
+      <div class="card-title">Session Performance — Total R by Session</div>
+      <canvas id="sessionChart" height="200"></canvas>
+    </div>
+  </div>
+
+  <div class="alert">
+    <div class="alert-title">⚠ Critical Execution Alert</div>
+    A+/EX-ERROR: 5 trades, 0 winners, −5.06R. NO SETUP/X: 8 trades, 0 winners, −5.28R. These 13 trades represent <strong>pure behavioral loss</strong>. Eliminate them and your historical expectancy improves materially.
+  </div>
+
+  <div class="card">
+    <div class="card-title">Circle Performance Summary</div>
+    <table class="tbl">
+      <tr><th>Circle</th><th>Trades</th><th>Won</th><th>Loss</th><th>BE</th><th>Missed</th><th>Win Rate</th><th>Total R</th><th>Avg Win R</th><th>Avg Loss R</th><th>Expectancy</th><th>Max DD</th></tr>
+      <tr><td><strong>C0</strong></td><td>10</td><td class="pos">3</td><td class="neg">7</td><td>0</td><td>0</td><td class="neu">30%</td><td class="pos">+7.08</td><td class="pos">+4.69</td><td class="neg">-1.00</td><td class="pos">+0.71</td><td class="neg">6.0</td></tr>
+      <tr><td><strong>C1</strong></td><td>14</td><td class="pos">3</td><td class="neg">11</td><td>0</td><td>1</td><td class="neu">21%</td><td class="pos">+4.75</td><td class="pos">+4.88</td><td class="neg">-0.90</td><td class="pos">+0.34</td><td class="neg">5.4</td></tr>
+      <tr><td><strong>C2</strong></td><td>12</td><td class="pos">3</td><td class="neg">8</td><td>1</td><td>1</td><td class="neu">27%</td><td class="neg">-1.05</td><td class="pos">+2.07</td><td class="neg">-0.92</td><td class="neg">-0.10</td><td class="neg">5.3</td></tr>
+      <tr><td><strong>C3</strong></td><td>14</td><td class="pos">1</td><td class="neg">11</td><td>2</td><td>2</td><td class="neg">8%</td><td class="neg">-2.91</td><td class="pos">+0.69</td><td class="neg">-0.33</td><td class="neg">-0.25</td><td class="neg">3.6</td></tr>
+      <tr><td><strong>C4</strong></td><td>11</td><td class="pos">1</td><td class="neg">10</td><td>0</td><td>1</td><td class="neg">9%</td><td class="neg">-3.44</td><td class="pos">+10.4</td><td class="neg">-1.38</td><td class="neg">-0.31</td><td class="neg">13.8</td></tr>
+      <tr style="background: rgba(34,197,94,.04)"><td><strong>C5</strong></td><td>34</td><td class="pos">8</td><td class="neg">22</td><td>4</td><td>4</td><td class="neu">27%</td><td class="pos">+39.86</td><td class="pos">+5.98</td><td class="neg">-0.36</td><td class="pos">+1.33</td><td class="neg">5.0</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════ EQUITY CURVE -->
+<div id="page-equity" class="page">
+  <div class="sec-hdr">Cumulative Equity Curve <span>R-multiples · 62 data points with R values</span></div>
+
+  <div class="insight">
+    <strong>Pattern:</strong> Journal opened with a −6R drawdown, recovered to +14R, then entered a sustained correction through C2–C4 (peak-to-trough of ~20R). C5 produced a <strong>sharp recovery and new high</strong> driven primarily by ETH. The curve demonstrates your edge exists, but consistency between peaks is the challenge. Note: C3 and C4 were your lowest-quality execution periods.
+  </div>
+
+  <div class="card card-full" style="margin-bottom:16px">
+    <div class="card-title">Cumulative R — Across All Journal Periods</div>
+    <canvas id="equityChart" height="300"></canvas>
+  </div>
+
+  <div class="grid-3">
+    <div class="card kpi">
+      <div class="kpi-val pos">+44.3R</div>
+      <div class="kpi-label">Final Cumulative R</div>
+    </div>
+    <div class="card kpi">
+      <div class="kpi-val neg">~20R</div>
+      <div class="kpi-label">Largest Drawdown</div>
+      <div class="kpi-sub neg">C2–C4 correction</div>
+    </div>
+    <div class="card kpi">
+      <div class="kpi-val pos">+39.9R</div>
+      <div class="kpi-label">C5 Contribution</div>
+      <div class="kpi-sub neu">90% of total R from C5</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Per-Circle R Contribution</div>
+    <canvas id="circleBarChart" height="200"></canvas>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ EDGE ANALYSIS -->
+<div id="page-edge" class="page">
+  <div class="sec-hdr">Edge Analysis <span>A5RT setup quality vs execution vs outcome</span></div>
+
+  <div class="insight">
+    <strong>Core finding:</strong> A+/CLEAN has positive expectancy (+1.15R) on a 26% win rate — your A5RT edge is <strong>statistically real</strong>. The critical issue is win rate compression from entries: <strong>SIM/IMB is your worst entry type</strong> (−5.38R, 12% WR). <strong>BE/T.BAR is 2/2 wins (+14.5R)</strong> — extremely small sample but worth watching. BE/U.WICK is your most reliable entry structure.
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">Grade Breakdown — Setup & Execution Quality</div>
+      <table class="tbl">
+        <tr><th>Grade</th><th>n</th><th>W</th><th>L</th><th>BE</th><th>WR</th><th>Total R</th><th>Exp</th></tr>
+        <tr><td><span class="tag tag-green">A+/CLEAN</span></td><td>42</td><td class="pos">10</td><td class="neg">28</td><td>4</td><td class="pos">26.3%</td><td class="pos">+43.86</td><td class="pos">+1.15</td></tr>
+        <tr><td><span class="tag tag-blue">CLEAN (C0-1)</span></td><td>9</td><td class="pos">2</td><td class="neg">6</td><td>1</td><td class="neu">25%</td><td class="pos">+1.40</td><td class="pos">+0.17</td></tr>
+        <tr><td><span class="tag tag-yellow">A+/EX-ERROR</span></td><td>5</td><td>0</td><td class="neg">5</td><td>0</td><td class="neg">0%</td><td class="neg">-5.06</td><td class="neg">N/A</td></tr>
+        <tr><td><span class="tag tag-purple">ERROR (C0-1)</span></td><td>3</td><td class="pos">1</td><td class="neg">2</td><td>0</td><td class="neu">33%</td><td class="neg">-2.45</td><td class="neg">N/A</td></tr>
+        <tr><td><span class="tag tag-red">NO SETUP/X</span></td><td>8</td><td>0</td><td class="neg">6</td><td>2</td><td class="neg">0%</td><td class="neg">-5.28</td><td class="neg">N/A</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <div class="card-title">Bias Model Performance</div>
+      <table class="tbl">
+        <tr><th>Bias Model</th><th>n</th><th>WR</th><th>Total R</th><th>Exp</th><th>Signal</th></tr>
+        <tr><td>H4 A+</td><td>19</td><td class="neu">21%</td><td class="pos">+16.2</td><td class="pos">+0.85</td><td><span class="tag tag-green">EDGE</span></td></tr>
+        <tr><td>H4 A+, R.ENTRY</td><td>12</td><td class="neu">27%</td><td class="pos">+6.2</td><td class="pos">+0.56</td><td><span class="tag tag-green">EDGE</span></td></tr>
+        <tr><td>ARC</td><td>7</td><td class="neg">17%</td><td class="pos">+5.7</td><td class="pos">+0.95</td><td><span class="tag tag-blue">WATCH</span></td></tr>
+        <tr><td>R.ENTRY</td><td>8</td><td class="neu">29%</td><td class="pos">+1.0</td><td class="pos">+0.13</td><td><span class="tag tag-blue">WATCH</span></td></tr>
+        <tr><td>H4A+ R.ENTRY</td><td>6</td><td class="neg">0%</td><td class="neg">-3.0</td><td class="neg">N/A</td><td><span class="tag tag-red">REVIEW</span></td></tr>
+        <tr><td>ARC R.ENTRY</td><td>5</td><td class="neg">0%</td><td class="neg">-6.1</td><td class="neg">N/A</td><td><span class="tag tag-red">REVIEW</span></td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Entry Type Performance — Ranked by Total R</div>
+    <canvas id="entryChart" height="220"></canvas>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">Entry Type Detail</div>
+      <table class="tbl">
+        <tr><th>Entry</th><th>n</th><th>WR</th><th>Total R</th><th>Avg Win</th><th>Avg Loss</th><th>Exp</th></tr>
+        <tr><td>BE/T.BAR</td><td>2</td><td class="pos">100%</td><td class="pos">+14.5</td><td class="pos">+7.25</td><td>—</td><td class="pos">N/A*</td></tr>
+        <tr><td>BE/U.WICK</td><td>26</td><td class="neu">29%</td><td class="pos">+20.9</td><td class="pos">+4.43</td><td class="neg">-0.59</td><td class="pos">+0.87</td></tr>
+        <tr><td>M15 BE</td><td>13</td><td class="neu">31%</td><td class="pos">+9.3</td><td class="pos">+4.51</td><td class="neg">-0.98</td><td class="pos">+0.71</td></tr>
+        <tr><td>M3 SIM</td><td>8</td><td class="neu">25%</td><td class="pos">+4.6</td><td class="pos">+5.33</td><td class="neg">-1.01</td><td class="pos">+0.57</td></tr>
+        <tr><td>BE/IMB</td><td>18</td><td class="neg">13%</td><td class="pos">+2.4</td><td class="pos">+6.58</td><td class="neg">-0.77</td><td class="pos">+0.15</td></tr>
+        <tr><td>H4 BE</td><td>3</td><td class="neg">0%</td><td class="neg">-2.0</td><td>—</td><td class="neg">-0.68</td><td class="neg">N/A*</td></tr>
+        <tr><td>SIM/IMB</td><td>18</td><td class="neg">12%</td><td class="neg">-5.4</td><td class="pos">+3.26</td><td class="neg">-0.79</td><td class="neg">-0.32</td></tr>
+      </table>
+      <div style="font-size:10px;color:var(--muted);margin-top:8px">* Insufficient sample for expectancy</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Pair Performance</div>
+      <table class="tbl">
+        <tr><th>Pair</th><th>n</th><th>WR</th><th>Total R</th><th>Exp</th><th>Signal</th></tr>
+        <tr><td>ETH</td><td>18</td><td class="pos">44%</td><td class="pos">+34.86</td><td class="pos">+2.18</td><td><span class="tag tag-green">BEST</span></td></tr>
+        <tr><td>GBPUSD</td><td>6</td><td class="neu">33%</td><td class="pos">+6.68</td><td class="pos">+1.11</td><td><span class="tag tag-green">EDGE</span></td></tr>
+        <tr><td>EURUSD</td><td>17</td><td class="neu">24%</td><td class="pos">+6.17</td><td class="pos">+0.36</td><td><span class="tag tag-blue">WATCH</span></td></tr>
+        <tr><td>EU</td><td>43</td><td class="neg">15%</td><td class="pos">+1.38</td><td class="pos">+0.03</td><td><span class="tag tag-yellow">BARELY</span></td></tr>
+        <tr><td>BTC</td><td>6</td><td class="neg">0%</td><td>0</td><td class="neg">N/A</td><td><span class="tag tag-red">REVIEW</span></td></tr>
+        <tr><td>GU</td><td>3</td><td class="neg">0%</td><td class="neg">-3.77</td><td class="neg">N/A</td><td><span class="tag tag-red">REVIEW</span></td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ EXECUTION -->
+<div id="page-execution" class="page">
+  <div class="sec-hdr">Execution Quality <span>Where R is created vs destroyed</span></div>
+
+  <div class="insight">
+    <strong>Execution verdict:</strong> Your <em>strategy</em> has edge. Your <em>execution</em> is actively destroying R. Specifically: <strong>ARC R.ENTRY has a 0% win rate (−6.1R)</strong> — you are re-entering ARC setups after they've already failed and losing every time. The London session generates 54% of your trades but is <strong>barely breakeven (+1.1R over 56 trades)</strong>. You trade most and perform worst when LDN is active.
+  </div>
+
+  <div class="grid-4">
+    <div class="card kpi">
+      <div class="kpi-val neg">−10.34R</div>
+      <div class="kpi-label">Execution Error Cost</div>
+      <div class="kpi-sub neg">EX-ERROR + NO SETUP/X</div>
+    </div>
+    <div class="card kpi">
+      <div class="kpi-val neg">12.5%</div>
+      <div class="kpi-label">Error Trade Rate</div>
+      <div class="kpi-sub neg">13 / 104 trades are errors</div>
+    </div>
+    <div class="card kpi">
+      <div class="kpi-val neg">0%</div>
+      <div class="kpi-label">ARC R.ENTRY Win Rate</div>
+      <div class="kpi-sub neg">5 trades, −6.12R total</div>
+    </div>
+    <div class="card kpi">
+      <div class="kpi-val neg">17.3%</div>
+      <div class="kpi-label">LDN Win Rate</div>
+      <div class="kpi-sub neg">56 trades · barely breakeven</div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">R Attribution — What Drives Your Results</div>
+      <canvas id="attributionChart" height="240"></canvas>
+    </div>
+    <div class="card">
+      <div class="card-title">Session Deep Dive</div>
+      <table class="tbl">
+        <tr><th>Session</th><th>Trades</th><th>WR</th><th>Total R</th><th>Avg Win</th><th>Exp</th><th>Max DD</th></tr>
+        <tr><td><strong>OVERLAP</strong></td><td>3</td><td class="pos">67%</td><td class="pos">+12.74</td><td class="pos">+6.37</td><td class="pos">N/A*</td><td>0</td></tr>
+        <tr><td><strong>ASIA</strong></td><td>7</td><td class="pos">57%</td><td class="pos">+14.79</td><td class="pos">+4.14</td><td class="pos">+2.11</td><td class="neg">1.8</td></tr>
+        <tr><td><strong>NY</strong></td><td>25</td><td class="neu">17%</td><td class="pos">+15.67</td><td class="pos">+6.53</td><td class="pos">+0.65</td><td class="neg">7.5</td></tr>
+        <tr><td><strong>LDN</strong></td><td>56</td><td class="neg">17%</td><td class="pos">+1.10</td><td class="pos">+4.27</td><td class="pos">+0.02</td><td class="neg">19.7</td></tr>
+      </table>
+      <div style="font-size:10px;color:var(--muted);margin-top:8px">* OVERLAP: 3 trades only — insufficient sample</div>
+      <div style="font-size:11px;color:var(--yellow);margin-top:10px;line-height:1.5">
+        ⚡ You take <strong>54% of your trades in London</strong> but generate only <strong>2.5% of your R</strong> there. ASIA and OVERLAP produce disproportionate R per trade.
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Re-entry Analysis — First Entry vs Re-entries</div>
+    <table class="tbl">
+      <tr><th>Type</th><th>n</th><th>W</th><th>L</th><th>WR</th><th>Total R</th><th>Expectancy</th><th>Verdict</th></tr>
+      <tr><td>H4 A+ (first entry)</td><td>19</td><td class="pos">4</td><td class="neg">15</td><td class="neu">21%</td><td class="pos">+16.2R</td><td class="pos">+0.85</td><td><span class="tag tag-green">KEEP</span></td></tr>
+      <tr><td>H4 A+, R.ENTRY</td><td>12</td><td class="pos">3</td><td class="neg">8</td><td class="neu">27%</td><td class="pos">+6.2R</td><td class="pos">+0.56</td><td><span class="tag tag-blue">SELECTIVE</span></td></tr>
+      <tr><td>H4A+ R.ENTRY (variant)</td><td>6</td><td>0</td><td class="neg">4</td><td class="neg">0%</td><td class="neg">-3.0R</td><td class="neg">N/A</td><td><span class="tag tag-red">INVESTIGATE</span></td></tr>
+      <tr><td>ARC (first entry)</td><td>7</td><td class="pos">1</td><td class="neg">5</td><td class="neg">17%</td><td class="pos">+5.7R</td><td class="pos">+0.95</td><td><span class="tag tag-blue">WATCH</span></td></tr>
+      <tr><td>ARC R.ENTRY</td><td>5</td><td>0</td><td class="neg">5</td><td class="neg">0%</td><td class="neg">-6.1R</td><td class="neg">N/A</td><td><span class="tag tag-red">STOP</span></td></tr>
+    </table>
+    <div style="font-size:11px;color:var(--red);margin-top:12px;line-height:1.6">
+      ⚠ <strong>ARC R.ENTRY: 0 wins from 5 re-entries, −6.12R.</strong> This is your single most damaging execution pattern. ARC setups that fail the first time are showing zero recovery edge on re-entry. Consider a rule: no re-entries on ARC after a failed first entry until the context fully resets.
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <div class="card-title">Missed Trade Analysis — Opportunity Cost (9 trades)</div>
+    <table class="tbl">
+      <tr><th>Circle</th><th>Count</th><th>Note</th></tr>
+      <tr><td>C1</td><td>1</td><td style="color:var(--muted)">Early period, limited data</td></tr>
+      <tr><td>C2</td><td>1</td><td style="color:var(--muted)">1 noted — one was A+ 1:20 deleted</td></tr>
+      <tr><td>C3</td><td>2</td><td style="color:var(--muted)">Includes deleted trades that won</td></tr>
+      <tr><td>C4</td><td>1</td><td style="color:var(--muted)">Emotional start of week</td></tr>
+      <tr><td>C5</td><td>4</td><td style="color:var(--muted)">Highest circle, most opportunities</td></tr>
+    </table>
+    <div style="font-size:11px;color:var(--yellow);margin-top:10px;line-height:1.6">
+      ⚡ Your thought logs reveal a pattern: you <strong>delete limit orders</strong> that later trigger as winners. This is a specific, named behavior to track and stop. Sample includes an A+ 1:20 and a trade that would have been 1:49.91R — you took only 1:10.
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ CIRCLES -->
+<div id="page-circles" class="page">
+  <div class="sec-hdr">Circle-by-Circle Analysis <span>Journal period breakdown</span></div>
+
+  <div class="circle-row">
+    <div class="circle-chip active" onclick="selectCircle('C0')">
+      <div class="cc-name">CIRCLE 0</div>
+      <div class="cc-r pos">+7.08R</div>
+      <div class="cc-wr">WR: 30% · 10 trades</div>
+    </div>
+    <div class="circle-chip" onclick="selectCircle('C1')">
+      <div class="cc-name">CIRCLE 1</div>
+      <div class="cc-r pos">+4.75R</div>
+      <div class="cc-wr">WR: 21% · 14 trades</div>
+    </div>
+    <div class="circle-chip" onclick="selectCircle('C2')">
+      <div class="cc-name">CIRCLE 2</div>
+      <div class="cc-r neg">-1.05R</div>
+      <div class="cc-wr">WR: 27% · 12 trades</div>
+    </div>
+    <div class="circle-chip" onclick="selectCircle('C3')">
+      <div class="cc-name">CIRCLE 3</div>
+      <div class="cc-r neg">-2.91R</div>
+      <div class="cc-wr">WR: 8% · 14 trades</div>
+    </div>
+    <div class="circle-chip" onclick="selectCircle('C4')">
+      <div class="cc-name">CIRCLE 4</div>
+      <div class="cc-r neg">-3.44R</div>
+      <div class="cc-wr">WR: 9% · 11 trades</div>
+    </div>
+    <div class="circle-chip" onclick="selectCircle('C5')">
+      <div class="cc-name">CIRCLE 5</div>
+      <div class="cc-r pos">+39.86R</div>
+      <div class="cc-wr">WR: 27% · 34 trades</div>
+    </div>
+  </div>
+
+  <div id="circle-detail"></div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ BREAKDOWN -->
+<div id="page-breakdown" class="page">
+  <div class="sec-hdr">Full Breakdown <span>Bias · Entry · Session · Pair</span></div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">Bias Model — Ranked by Total R</div>
+      <canvas id="biasChart" height="260"></canvas>
+    </div>
+    <div class="card">
+      <div class="card-title">Entry Type — Ranked by Total R</div>
+      <canvas id="entryChart2" height="260"></canvas>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">Session — Win Rate vs Total R</div>
+      <canvas id="sessWrChart" height="200"></canvas>
+    </div>
+    <div class="card">
+      <div class="card-title">Pair — Total R Distribution</div>
+      <canvas id="pairChart" height="200"></canvas>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Priority Action Matrix — Based on Data</div>
+    <table class="tbl">
+      <tr><th>Priority</th><th>Finding</th><th>Impact</th><th>Action</th></tr>
+      <tr><td><span class="tag tag-red">P1 — STOP</span></td><td>ARC R.ENTRY: 0/5 wins, −6.12R</td><td class="neg">−6.12R</td><td>No re-entries on ARC after failed first entry</td></tr>
+      <tr><td><span class="tag tag-red">P1 — STOP</span></td><td>NO SETUP/X: 0 wins, −5.28R</td><td class="neg">−5.28R</td><td>Zero tolerance for trades outside A5RT framework</td></tr>
+      <tr><td><span class="tag tag-red">P1 — STOP</span></td><td>Deleting limit orders that trigger as winners</td><td class="neg">Unknown R</td><td>Rule: never delete a set limit order</td></tr>
+      <tr><td><span class="tag tag-yellow">P2 — REVIEW</span></td><td>H4A+ R.ENTRY variant: 0/4 wins, −3.0R</td><td class="neg">−3.0R</td><td>Distinguish this from H4 A+, R.ENTRY — what's different?</td></tr>
+      <tr><td><span class="tag tag-yellow">P2 — REVIEW</span></td><td>SIM/IMB entry: 12% WR, −5.38R</td><td class="neg">−5.38R</td><td>Filter SIM/IMB — only in strongest confluence setups</td></tr>
+      <tr><td><span class="tag tag-yellow">P2 — REDUCE</span></td><td>LDN: 54% of trades, 2.5% of R</td><td class="neu">Opportunity cost</td><td>Reduce LDN trade frequency or increase selectivity filter</td></tr>
+      <tr><td><span class="tag tag-blue">P3 — BUILD</span></td><td>BE/T.BAR: 2/2 wins, +14.5R</td><td class="pos">+7.25 avg</td><td>Track actively — if sample grows, prioritize this entry</td></tr>
+      <tr><td><span class="tag tag-blue">P3 — BUILD</span></td><td>ETH: 44% WR, +34.86R, +2.18R exp</td><td class="pos">Best instrument</td><td>Allocate more focus to ETH with A5RT framework</td></tr>
+      <tr><td><span class="tag tag-green">P4 — PROTECT</span></td><td>ASIA session: 57% WR, +2.11R exp</td><td class="pos">Best session</td><td>Protect and increase ASIA trade quality; don't overtrade</td></tr>
+      <tr><td><span class="tag tag-green">P4 — PROTECT</span></td><td>A+/CLEAN: +1.15R expectancy</td><td class="pos">Core edge</td><td>This IS your edge. Only take A+/CLEAN trades.</td></tr>
+    </table>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════ DATA
+const D = {
+  cumR: [-1,-2,-3,-4,-5,-6,0.68,-0.32,3.08,7.08,6.06,5.05,14.22,12.84,14.33,13.30,17.27,16.26,15.22,14.07,13.85,12.84,11.83,10.38,8.93,7.58,6.54,6.62,12.82,11.78,10.78,11.47,10.19,8.84,8.87,7.87,3.81,2.04,1.04,0.04,-0.96,-1.96,-2.96,-3.96,-4.96,-5.96,4.44,14.44,13.44,12.44,11.44,10.44,9.44,12.59,18.63,17.63,16.63,23.14,22.14,24.88,36.64,44.30],
+  circles: {
+    C0: {n:10,won:3,loss:7,be:0,missed:0,total_r:7.08,wr:.3,avg_win_r:4.693,avg_loss_r:-1.0,expectancy:0.71,max_dd_r:6.0},
+    C1: {n:14,won:3,loss:11,be:0,missed:1,total_r:4.751,wr:.2143,avg_win_r:4.876,avg_loss_r:-0.898,expectancy:0.34,max_dd_r:5.4},
+    C2: {n:12,won:3,loss:8,be:1,missed:1,total_r:-1.049,wr:.2727,avg_win_r:2.068,avg_loss_r:-0.916,expectancy:-0.10,max_dd_r:5.3},
+    C3: {n:14,won:1,loss:11,be:2,missed:2,total_r:-2.909,wr:.0833,avg_win_r:0.69,avg_loss_r:-0.33,expectancy:-0.25,max_dd_r:3.6},
+    C4: {n:11,won:1,loss:10,be:0,missed:1,total_r:-3.435,wr:.0909,avg_win_r:10.4,avg_loss_r:-1.384,expectancy:-0.31,max_dd_r:13.8},
+    C5: {n:34,won:8,loss:22,be:4,missed:4,total_r:39.86,wr:.2667,avg_win_r:5.982,avg_loss_r:-0.364,expectancy:1.33,max_dd_r:5.0},
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════════ CHARTS
+const chartDefaults = {
+  color:'#e8ecf2', borderColor:'#252c3a',
+  plugins:{legend:{display:false},tooltip:{backgroundColor:'#1e2330',titleColor:'#e8ecf2',bodyColor:'#6b7591',borderColor:'#252c3a',borderWidth:1}}
+};
+
+// Grade donut
+new Chart(document.getElementById('gradeChart'), {
+  type:'bar',
+  data:{
+    labels:['A+/CLEAN','CLEAN','A+/EX-ERROR','ERROR','NO SETUP/X'],
+    datasets:[
+      {label:'Won',data:[10,2,0,1,0],backgroundColor:'rgba(34,197,94,.7)',borderRadius:4},
+      {label:'Loss',data:[28,6,5,2,6],backgroundColor:'rgba(239,68,68,.7)',borderRadius:4},
+      {label:'BE',data:[4,1,0,0,2],backgroundColor:'rgba(245,158,11,.5)',borderRadius:4},
+    ]
+  },
+  options:{...chartDefaults,responsive:true,scales:{x:{stacked:true,grid:{color:'rgba(37,44,58,.5)'},ticks:{color:'#6b7591',font:{size:10}}},y:{stacked:true,grid:{color:'rgba(37,44,58,.5)'},ticks:{color:'#6b7591'}}},plugins:{...chartDefaults.plugins,legend:{display:true,position:'top',labels:{color:'#6b7591',font:{size:10},boxWidth:12}}}}
+});
+
+// Session bar
+new Chart(document.getElementById('sessionChart'), {
+  type:'bar',
+  data:{
+    labels:['LDN','NY','ASIA','OVERLAP'],
+    datasets:[
+      {label:'Total R',data:[1.096,15.672,14.792,12.738],
+       backgroundColor:['rgba(239,68,68,.6)','rgba(59,130,246,.6)','rgba(34,197,94,.6)','rgba(139,92,246,.6)'],borderRadius:6},
+    ]
+  },
+  options:{...chartDefaults,responsive:true,scales:{x:{grid:{color:'rgba(37,44,58,.5)'},ticks:{color:'#6b7591'}},y:{grid:{color:'rgba(37,44,58,.5)'},ticks:{color:'#6b7591'}}}}
+});
+
+// Equity curve
+const labels = D.cumR.map((_,i)=>`T${i+1}`);
+const belowZero = D.cumR.map(v=>v<0?v:null);
+new Chart(document.getElementById('equityChart'), {
+  type:'line',
+  data:{
+    labels,
+    datasets:[
+      {label:'Cumulative R',data:D.cumR,borderColor:'#3b82f6',backgroundColor:'rgba(59,130,246,.07)',fill:true,tension:.35,pointRadius:2,pointHoverRadius:5},
+      {label:'Zero Line',data:D.cumR.map(()=>0),borderColor:'rgba(107,117,145,.3)',borderDash:[4,4],pointRadius:0},
+    ]
+  },
+  options:{...chartDefaults,responsive:true,
+    scales:{x:{display:false,grid:{display:false}},
+            y:{grid:{color:'rgba(37,44,58,.5)'},ticks:{color:'#6b7591',callback:v=>`${v}R`}}},
+    plugins:{...chartDefaults.plugins,legend:{display:false}}}
+});
+
+// Circle bar
+new Chart(document.getElementById('circleBarChart'), {
+  type:'bar',
+  data:{
+    labels:['C0','C1','C2','C3','C4','C5'],
+    datasets:[{
+      label:'Total R',
+      data:[7.08,4.751,-1.049,-2.909,-3.435,39.86],
+      backgroundColor:[7.08,4.751,-1.049,-2.909,-3.435,39.86].map(v=>v>=0?'rgba(34,197,94,.7)':'rgba(239,68,68,.7)'),
+      borderRadius:6
+    }]
+  },
+  options:{...chartDefaults,responsive:true,scales:{x:{grid:{color:'rgba(37,44,58,.5)'},ticks:{color:'#6b7591'}},y:{grid:{color:'rgba(37,44,58,.5)'},ticks:{color:'#6b7591',callback:v=>`${v}R`}}}}
+});
+
+// Attribution
+new Chart(document.getElementById('attributionChart'), {
+  type:'doughnut',
+  data:{
+    labels:['A+/CLEAN (+43.9R)','CLEAN (+1.4R)','EX-ERROR (−5.1R)','ERROR (−2.5R)','NO SETUP/X (−5.3R)'],
+    datasets:[{data:[43.86,1.40,5.06,2.45,5.28],backgroundColor:['rgba(34,197,94,.8)','rgba(6,182,212,.6)','rgba(245,158,11,.7)','rgba(239,68,68,.5)','rgba(239,68,68,.8)'],borderWidth:1,borderColor:'#11141a'}]
+  },
+  options:{...chartDefaults,plugins:{...chartDefaults.plugins,legend:{display:true,position:'right',labels:{color:'#6b7591',font:{size:10},boxWidth:12}}}}
+});
+
+// Entry chart
+new Chart(document.getElementById('entryChart'), {
+  type:'bar',
+  data:{
+    labels:['BE/T.BAR','BE/U.WICK','M15 BE','M3 SIM','BE/IMB','H4 BE','SIM/IMB'],
+    datasets:[{
+      label:'Total R',
+      data:[14.498,20.945,9.275,4.583,2.398,-2.028,-5.376],
+      backgroundColor:[14.498,20.945,9.275,4.583,2.398,-2.028,-5.376].map(v=>v>=0?'rgba(59,130,246,.7)':'rgba(239,68,68,.7)'),
+      borderRadius:6
+    }]
+  },
+  options:{...chartDefaults,responsive:true,scales:{x:{grid:{color:'rgba(37,44,58,.5)'},ticks:{color:'#6b7591',font:{size:10}}},y:{grid:{color:'rgba(37,44,58,.5)'},ticks:{color:'#6b7591',callback:v=>`${v}R`}}}}
+});
+
+// Bias chart (page 5)
+new Chart(document.getElementById('biasChart'), {
+  type:'bar',
+  data:{
+    labels:['H4 A+','H4 A+ R.ENTRY','ARC','R.ENTRY','H4A+ R.ENTRY','ARC R.ENTRY'],
+    datasets:[{
+      data:[16.194,6.195,5.719,0.992,-2.972,-6.119],
+      backgroundColor:[16.194,6.195,5.719,0.992,-2.972,-6.119].map(v=>v>=0?'rgba(34,197,94,.7)':'rgba(239,68,68,.7)'),
+      borderRadius:6
+    }]
+  },
+  options:{...chartDefaults,responsive:true,indexAxis:'y',scales:{x:{grid:{color:'rgba(37,44,58,.5)'},ticks:{color:'#6b7591',callback:v=>`${v}R`}},y:{grid:{display:false},ticks:{color:'#6b7591',font:{size:10}}}}}
+});
+
+// Entry chart 2 (page 5)
+new Chart(document.getElementById('entryChart2'), {
+  type:'bar',
+  data:{
+    labels:['BE/T.BAR','BE/U.WICK','M15 BE','M3 SIM','BE/IMB','H4 BE','SIM/IMB'],
+    datasets:[{
+      data:[14.498,20.945,9.275,4.583,2.398,-2.028,-5.376],
+      backgroundColor:[14.498,20.945,9.275,4.583,2.398,-2.028,-5.376].map(v=>v>=0?'rgba(139,92,246,.7)':'rgba(239,68,68,.7)'),
+      borderRadius:6
+    }]
+  },
+  options:{...chartDefaults,responsive:true,indexAxis:'y',scales:{x:{grid:{color:'rgba(37,44,58,.5)'},ticks:{color:'#6b7591',callback:v=>`${v}R`}},y:{grid:{display:false},ticks:{color:'#6b7591',font:{size:10}}}}}
+});
+
+// Session WR
+new Chart(document.getElementById('sessWrChart'), {
+  type:'bar',
+  data:{
+    labels:['OVERLAP','ASIA','NY','LDN'],
+    datasets:[
+      {label:'Win Rate %',data:[66.7,57.1,16.7,17.3],backgroundColor:'rgba(34,197,94,.5)',borderRadius:4},
+      {label:'Total R',data:[12.7,14.8,15.7,1.1],backgroundColor:'rgba(59,130,246,.5)',borderRadius:4},
+    ]
+  },
+  options:{...chartDefaults,responsive:true,scales:{x:{grid:{color:'rgba(37,44,58,.5)'},ticks:{color:'#6b7591'}},y:{grid:{color:'rgba(37,44,58,.5)'},ticks:{color:'#6b7591'}}},plugins:{...chartDefaults.plugins,legend:{display:true,position:'top',labels:{color:'#6b7591',font:{size:10},boxWidth:12}}}}
+});
+
+// Pair chart
+new Chart(document.getElementById('pairChart'), {
+  type:'bar',
+  data:{
+    labels:['ETH','GBPUSD','EURUSD','EU','BTC','GU'],
+    datasets:[{
+      data:[34.86,6.68,6.17,1.38,0,-3.77],
+      backgroundColor:[34.86,6.68,6.17,1.38,0,-3.77].map(v=>v>0?'rgba(6,182,212,.7)':'rgba(239,68,68,.7)'),
+      borderRadius:6
+    }]
+  },
+  options:{...chartDefaults,responsive:true,scales:{x:{grid:{color:'rgba(37,44,58,.5)'},ticks:{color:'#6b7591'}},y:{grid:{color:'rgba(37,44,58,.5)'},ticks:{color:'#6b7591',callback:v=>`${v}R`}}}}
+});
+
+// ═══════════════════════════════════════════════════════════════════ NAV
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  event.target.classList.add('active');
+}
+
+// ═══════════════════════════════════════════════════════════════════ CIRCLES
+const circleNotes = {
+  C0:"Early period — no GRADE column. 30% WR with +7.08R. Positive expectancy driven by large winners averaging +4.7R vs −1.0R losers. Clean start.",
+  C1:"GRADE column absent. 21% WR but still +4.75R — large winners salvaging the period. A 1:9.33R EURUSD trade (+4.58R) and a 1:3.95R NY trade (+7.94R) anchored this circle.",
+  C2:"First circle with full GRADE data. FOMO begins appearing frequently in thought logs. −1.05R total — just barely negative. Notable: a deleted limit order that became a 1:20 winner.",
+  C3:"Worst execution circle — 8% WR (1 win from 14 trades). Thought logs show emotional trading, multiple re-entries without confirmation. However, MaxDD is only 3.6R — risk control held.",
+  C4:"Most damaging circle in MaxDD terms (13.8R peak-to-trough). One 10.4R win rescued from a −7.6% drawdown context. Clear emotional spiral documented in logs. 0/10 on non-winning trades.",
+  C5:"Breakthrough circle. ETH generates 87% of C5 R. 1:10+ trades becoming regular. Expectancy +1.33R — first circle with institutional-grade expectancy. Still 27% WR — high R:R system working as designed."
+};
+
+function selectCircle(c) {
+  document.querySelectorAll('.circle-chip').forEach(x=>x.classList.remove('active'));
+  event.target.closest('.circle-chip').classList.add('active');
+  const s = D.circles[c];
+  const note = circleNotes[c];
+  const rColor = s.total_r >= 0 ? 'var(--green)' : 'var(--red)';
+  document.getElementById('circle-detail').innerHTML = `
+    <div class="card" style="margin-bottom:12px">
+      <div class="insight">${note}</div>
+      <div class="grid-4">
+        <div class="kpi"><div class="kpi-val" style="color:${rColor}">${s.total_r >= 0 ? '+' : ''}${s.total_r}R</div><div class="kpi-label">Total R</div></div>
+        <div class="kpi"><div class="kpi-val" style="color:var(--yellow)">${(s.wr*100).toFixed(1)}%</div><div class="kpi-label">Win Rate</div><div class="kpi-sub">${s.won}W / ${s.loss}L / ${s.be}BE</div></div>
+        <div class="kpi"><div class="kpi-val pos">${s.avg_win_r ? '+'+s.avg_win_r : 'N/A'}</div><div class="kpi-label">Avg Win R</div></div>
+        <div class="kpi"><div class="kpi-val neg">${s.avg_loss_r}</div><div class="kpi-label">Avg Loss R</div></div>
+      </div>
+      <div class="grid-4" style="margin-top:0">
+        <div class="kpi"><div class="kpi-val" style="color:${s.expectancy>=0?'var(--green)':'var(--red)'}">${s.expectancy >= 0 ? '+' : ''}${s.expectancy}R</div><div class="kpi-label">Expectancy</div></div>
+        <div class="kpi"><div class="kpi-val neg">${s.max_dd_r}R</div><div class="kpi-label">Max Drawdown</div></div>
+        <div class="kpi"><div class="kpi-val">${s.n}</div><div class="kpi-label">Trades Executed</div></div>
+        <div class="kpi"><div class="kpi-val" style="color:var(--yellow)">${s.missed}</div><div class="kpi-label">Missed Trades</div></div>
+      </div>
+    </div>`;
+}
+selectCircle('C0');
+
+// Auto-click first chip
+document.querySelector('.circle-chip').click();
+</script>
+</body>
+</html>
